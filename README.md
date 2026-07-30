@@ -1,5 +1,9 @@
 # 会議スカウター / Meeting Scouter
 
+[![CI](https://github.com/Fumiya-Matsumoto/meeting-scouter/actions/workflows/ci.yml/badge.svg)](https://github.com/Fumiya-Matsumoto/meeting-scouter/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+
 > 議事録を読み、横文字・曖昧表現・未決定・責任の所在を検出して、会議の「空中戦指数」をTUI風に診断するAgent Skill。
 
 Claude Code と Codex で動きます。議事録本文のコピペだけでなく、ローカルのファイルパスも渡せます。

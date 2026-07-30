@@ -1,6 +1,6 @@
 # 会議スカウター / Meeting Scouter
 
-[![CI](https://github.com/Fumiya-Matsumoto/meeting-scouter/actions/workflows/ci.yml/badge.svg)](https://github.com/Fumiya-Matsumoto/meeting-scouter/actions/workflows/ci.yml)
+[![CI](https://github.com/kirozero119/meeting-scouter/actions/workflows/ci.yml/badge.svg)](https://github.com/kirozero119/meeting-scouter/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 
@@ -34,7 +34,7 @@ Claude Code と Codex で動きます。議事録本文のコピペだけでな�
 ### リポジトリから一括インストール
 
 ```bash
-git clone https://github.com/Fumiya-Matsumoto/meeting-scouter.git
+git clone https://github.com/kirozero119/meeting-scouter.git
 cd meeting-scouter
 ./install.sh --all
 ```
@@ -54,7 +54,7 @@ cd meeting-scouter
 Codexで次を依頼します。
 
 ```text
-$skill-installer install https://github.com/Fumiya-Matsumoto/meeting-scouter/tree/main/meeting-scouter
+$skill-installer install https://github.com/kirozero119/meeting-scouter/tree/main/meeting-scouter
 ```
 
 インストール後、必要に応じてCodexを再起動してください。

@@ -1,0 +1,19 @@
+name: Phrase request
+description: Propose a generic meeting phrase or variant for the fixed dictionary
+title: "[Phrase]: "
+labels: [dictionary]
+body:
+  - type: input
+    attributes:
+      label: Canonical phrase
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Variants
+  - type: textarea
+    attributes:
+      label: Why it generalizes
+      description: Explain why this is not ordinary domain terminology.
+    validations:
+      required: true

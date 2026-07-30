@@ -1,0 +1,12 @@
+[project]
+name = "meeting-scouter-skill"
+version = "0.1.0"
+description = "An Agent Skill that diagnoses jargon-heavy, vague meetings with a playful TUI score."
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Fumiya Matsumoto"}]
+
+[project.urls]
+Homepage = "https://github.com/Fumiya-Matsumoto/meeting-scouter"
+Repository = "https://github.com/Fumiya-Matsumoto/meeting-scouter"
+Issues = "https://github.com/Fumiya-Matsumoto/meeting-scouter/issues"

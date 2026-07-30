@@ -1,0 +1,32 @@
+[
+  {
+    "name": "pasted-airy-meeting",
+    "prompt": "Use meeting-scouter on the pasted Japanese meeting notes. The output must be a TUI block and must identify missing owners and deadlines.",
+    "input_fixture": "tests/fixtures/airy-meeting.md",
+    "expectations": [
+      "Uses the deterministic script",
+      "Returns an air-battle index of at least 60",
+      "Does not attack named participants",
+      "Discovers at least one exact contextual phrase"
+    ]
+  },
+  {
+    "name": "file-path-input",
+    "prompt": "Use meeting-scouter on tests/fixtures/healthy-meeting.md without asking me to paste it.",
+    "expectations": [
+      "Reads the file directly",
+      "Returns a lower score than the airy fixture",
+      "Recognizes explicit decisions, owners, and deadlines"
+    ]
+  },
+  {
+    "name": "short-ambiguous-note",
+    "prompt": "Use meeting-scouter: 一旦持ち帰って、関係者と調整します。",
+    "expectations": [
+      "Returns a TUI result",
+      "Shows a low-confidence note because the input is under 200 characters",
+      "Counts fixed vague phrases",
+      "Does not fabricate decisions"
+    ]
+  }
+]

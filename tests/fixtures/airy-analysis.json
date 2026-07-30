@@ -1,0 +1,33 @@
+{
+  "source_label": "airy-meeting.md",
+  "meeting_minutes": 60,
+  "decisions": [],
+  "actions": [
+    {"task": "KPI案をブラッシュアップする", "owner": null, "deadline": null},
+    {"task": "料金案を検討する", "owner": null, "deadline": "次回会議"}
+  ],
+  "discovered_phrases": [
+    {
+      "phrase": "関係各所の温度感を見ながら柔軟にハンドリングしましょう",
+      "category": "vague",
+      "reason": "判断条件と実施方法が不明確",
+      "confidence": 0.96,
+      "occurrences": 1
+    },
+    {
+      "phrase": "詳細は次回改めて議論します",
+      "category": "decision_avoidance",
+      "reason": "料金案の決定を次回へ延期している",
+      "confidence": 0.98,
+      "occurrences": 1
+    },
+    {
+      "phrase": "担当については関係者と調整し",
+      "category": "responsibility_blur",
+      "reason": "担当者が会議内で確定していない",
+      "confidence": 0.97,
+      "occurrences": 1
+    }
+  ],
+  "roast": "全員の目線は揃いましたが、担当者と締切だけ別の会議に参加しています。"
+}

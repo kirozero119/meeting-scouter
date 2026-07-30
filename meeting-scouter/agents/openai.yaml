@@ -1,0 +1,4 @@
+interface:
+  display_name: "会議スカウター"
+  short_description: "議事録の空中戦指数と会議戦闘力を診断"
+  default_prompt: "Use $meeting-scouter to analyze these meeting minutes or the supplied meeting-note file path."

@@ -1,0 +1,21 @@
+name: Bug report
+description: Report incorrect scoring, installation, or rendering behavior
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Minimal anonymized input
+      description: Do not include confidential meeting content or personal information.
+  - type: input
+    attributes:
+      label: Agent and version
+      placeholder: Claude Code / Codex and version
+  - type: input
+    attributes:
+      label: Python version

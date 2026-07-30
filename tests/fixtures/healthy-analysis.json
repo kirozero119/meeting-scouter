@@ -1,0 +1,15 @@
+{
+  "source_label": "healthy-meeting.md",
+  "meeting_minutes": 20,
+  "decisions": [
+    {"text": "商品ページを8月5日に公開する"},
+    {"text": "定例の次回会議は設けない"}
+  ],
+  "actions": [
+    {"task": "最終画像を反映する", "owner": "田中さん", "deadline": "8月2日"},
+    {"task": "価格表を確認する", "owner": "佐藤さん", "deadline": "7月31日"},
+    {"task": "表示確認を行う", "owner": "松本さん", "deadline": "8月4日"}
+  ],
+  "discovered_phrases": [],
+  "roast": "決める人、やる人、期限が揃っています。会議スカウターの出番がありません。"
+}

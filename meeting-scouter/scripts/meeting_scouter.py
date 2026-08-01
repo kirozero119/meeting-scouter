@@ -598,17 +598,20 @@ def render_tui(result: ScouterResult) -> str:
     lines.append("")
     lines.append(f"  空中戦指数  {result.index:>3}/100  {_bar(result.index)}")
     lines.append(f"  ランク      {result.rank}  — {result.rank_label}")
-    lines.append(f"  会議戦闘力  {result.battle_power:,}")
+    lines.append(f"  会議戦闘力  {result.battle_power:,} — 高いほど空中戦です")
+    lines.append(
+        f"              （当スカウター基準{BASELINE_POWER:,}の約{result.baseline_multiple:.1f}倍）"
+    )
     if result.wasted_person_hours is not None:
         lines.append(
             f"  推定被害    {result.wasted_person_hours:.1f}人時が空中に消えました"
         )
     if result.meeting_minutes is not None:
-        decisions_per_hour = result.decisions * 60 / result.meeting_minutes
-        lines.append(f"  決定効率    {decisions_per_hour:.1f}件/時")
-    lines.append(
-        f"  当スカウター基準: 一般的な定例会議の約{result.baseline_multiple:.1f}倍"
-    )
+        if result.decisions == 0:
+            lines.append(f"  決定ペース  {result.meeting_minutes}分間で決定0件")
+        else:
+            minutes_per_decision = result.meeting_minutes / result.decisions
+            lines.append(f"  決定ペース  決定1件あたり約{minutes_per_decision:.0f}分")
     lines.append("")
     lines.append("  ── 内訳 ─────────────────────────────────────")
     lines.append(

@@ -145,7 +145,7 @@ class MeetingScouterTests(unittest.TestCase):
         output = engine.render_tui(result)
         self.assertIn("16.0人時", output)
         self.assertIn("推定被害", output)
-        self.assertIn("決定効率", output)
+        self.assertIn("決定ペース", output)
 
     def test_attendees_without_minutes_reports_no_damage(self) -> None:
         text, analysis = self.load_fixture("airy")

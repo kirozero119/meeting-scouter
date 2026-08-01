@@ -20,8 +20,8 @@ When `meeting_minutes` is `null`, the engine falls back to character-count norma
 
 `attendee_count` never changes the 0–100 score; the index measures the meeting's content quality. When both `meeting_minutes` and `attendee_count` are known, the TUI reports:
 
-- **Person-hours**: `minutes / 60 × attendees`.
-- **Wasted person-hours (推定被害)**: `person-hours × index / 100` — the estimated human time lost to the air battle. A 2-person rambling meeting and an 8-person one can share the same index while causing very different damage.
+- **Person-hours**: `minutes / 60 × attendees`, displayed in plain language as `延べN時間` (total labor hours), not the jargon `人時`.
+- **Wasted person-hours (推定被害)**: `person-hours × index / 100` — the estimated human time lost to the air battle, shown as `延べN時間が空中に消えました`. When the damage reaches 8 hours or more, a follow-up line converts it to business days (`約N営業日ぶんの労働です`, 8 hours = 1 business day). A 2-person rambling meeting and an 8-person one can share the same index while causing very different damage.
 
 ## Ranks
 

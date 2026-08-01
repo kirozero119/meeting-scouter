@@ -595,7 +595,7 @@ def render_tui(result: ScouterResult) -> str:
         if result.attendee_count is not None and result.person_hours is not None:
             lines.append(
                 f"  会議時間    {result.meeting_minutes}分 × {result.attendee_count}名"
-                f" = {result.person_hours:.1f}人時"
+                f" = 延べ{result.person_hours:.1f}時間"
             )
         else:
             lines.append(f"  会議時間    {result.meeting_minutes}分")
@@ -608,8 +608,11 @@ def render_tui(result: ScouterResult) -> str:
     )
     if result.wasted_person_hours is not None:
         lines.append(
-            f"  推定被害    {result.wasted_person_hours:.1f}人時が空中に消えました"
+            f"  推定被害    延べ{result.wasted_person_hours:.1f}時間が空中に消えました"
         )
+        if result.wasted_person_hours >= 8:
+            workdays = result.wasted_person_hours / 8
+            lines.append(f"              （約{workdays:.1f}営業日ぶんの労働です）")
     if result.meeting_minutes is not None:
         if result.decisions == 0:
             lines.append(f"  決定ペース  {result.meeting_minutes}分間で決定0件")

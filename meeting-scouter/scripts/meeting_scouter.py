@@ -585,6 +585,10 @@ def render_tui(result: ScouterResult) -> str:
     lines.append("                  会議スカウター")
     lines.append("          この会議、本当に必要でしたか？")
     lines.append("")
+    lines.append("  ── 診断 ─────────────────────────────────────")
+    for wrapped in textwrap.wrap(result.roast, width=27) or [result.roast]:
+        lines.append(f"  {wrapped}")
+    lines.append("")
     lines.append(f"  解析対象    {result.source_label}")
     lines.append(f"  文字数      {result.character_count:,}文字")
     if result.meeting_minutes is not None:
@@ -652,11 +656,6 @@ def render_tui(result: ScouterResult) -> str:
             lines.append(f"  「{phrase}」  {label} / 信頼度 {item['confidence']:.0%}")
         if len(result.new_candidates) > 3:
             lines.append(f"  ほか {len(result.new_candidates) - 3}件")
-
-    lines.append("")
-    lines.append("  ── 診断 ─────────────────────────────────────")
-    for wrapped in textwrap.wrap(result.roast, width=27) or [result.roast]:
-        lines.append(f"  {wrapped}")
 
     if result.character_count < 200:
         lines.append("")

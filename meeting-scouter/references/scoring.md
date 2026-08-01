@@ -34,7 +34,9 @@ When `meeting_minutes` is `null`, the engine falls back to character-count norma
 | 80–94 | S | 地上との通信が途絶えています |
 | 95–100 | SSS | 会議そのものが目的です |
 
-Battle power is theatrical: `1,000 + index × 100`. The comparison baseline is a fictional in-tool baseline of 4,000 and must always be labeled `当スカウター基準`; it is not real-world benchmark data.
+Battle power is theatrical: `1,000 + index × 100`. Higher means a fiercer air battle, and the TUI says so explicitly (`高いほど空中戦です`). The comparison baseline is a fictional in-tool baseline of 4,000, shown in parentheses directly under the battle-power line, and must always be labeled `当スカウター基準`; it is not real-world benchmark data.
+
+When the meeting length is known, the TUI also shows 決定ペース in plain language: `決定1件あたり約N分`, or `N分間で決定0件` when nothing was decided. Larger is worse, matching the direction of every other metric.
 
 ## Candidate learning
 

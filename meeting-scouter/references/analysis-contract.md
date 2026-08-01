@@ -6,6 +6,7 @@ Create one UTF-8 JSON object with this shape:
 {
   "source_label": "docs/weekly-meeting.md",
   "meeting_minutes": 60,
+  "attendee_count": 5,
   "decisions": [
     {"text": "料金プランを月額980円にする"}
   ],
@@ -32,7 +33,8 @@ Create one UTF-8 JSON object with this shape:
 ## Field rules
 
 - `source_label`: Short label shown in the TUI. Prefer a relative path or `貼り付けられた議事録`.
-- `meeting_minutes`: Integer when explicitly known; otherwise `null`.
+- `meeting_minutes`: Integer when explicitly known; otherwise `null`. When present, the engine scores jargon/ambiguity density and decision efficiency per unit of time instead of per character. Never guess; use `null` when the meeting length is not stated or clearly inferable.
+- `attendee_count`: Integer when explicitly known; otherwise `null`. Does not change the score; combined with `meeting_minutes` it produces the wasted person-hours display. Never guess.
 - `decisions`: Explicitly settled outcomes only. Each item must contain `text`.
 - `actions`: Concrete next steps. `owner` and `deadline` are strings or `null`.
 - `discovered_phrases`: Exact quotes that are not merely obvious fixed-dictionary matches.

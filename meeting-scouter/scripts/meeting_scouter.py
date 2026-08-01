@@ -18,7 +18,9 @@ from typing import Any, Iterable
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = SKILL_DIR / "data"
-DEFAULT_STATE_DIR = Path(os.environ.get("MEETING_SCOUTER_HOME", "~/.meeting-scouter")).expanduser()
+DEFAULT_STATE_DIR = Path(
+    os.environ.get("MEETING_SCOUTER_HOME", "~/.meeting-scouter")
+).expanduser()
 CANDIDATE_CONFIDENCE_THRESHOLD = 0.75
 BASELINE_POWER = 4_000
 
@@ -51,7 +53,16 @@ class ScoreBreakdown:
 
     @property
     def total(self) -> int:
-        return min(100, max(0, self.jargon + self.ambiguity + self.decision_deficit + self.accountability_gap))
+        return min(
+            100,
+            max(
+                0,
+                self.jargon
+                + self.ambiguity
+                + self.decision_deficit
+                + self.accountability_gap,
+            ),
+        )
 
 
 @dataclass(frozen=True)
@@ -59,6 +70,9 @@ class ScouterResult:
     source_label: str
     character_count: int
     meeting_minutes: int | None
+    attendee_count: int | None
+    person_hours: float | None
+    wasted_person_hours: float | None
     fixed_buzzwords: MatchSummary
     fixed_vague_phrases: MatchSummary
     discovered_counts: dict[str, int]
@@ -95,7 +109,9 @@ def _load_terms(path: Path) -> list[dict[str, Any]]:
         if not isinstance(item, dict) or not isinstance(item.get("term"), str):
             raise ScouterError(f"辞書エントリが不正です: {path}")
         variants = item.get("variants", [item["term"]])
-        if not isinstance(variants, list) or not all(isinstance(v, str) and v for v in variants):
+        if not isinstance(variants, list) or not all(
+            isinstance(v, str) and v for v in variants
+        ):
             raise ScouterError(f"variants が不正です: {path}: {item.get('term')}")
         terms.append({"term": item["term"], "variants": variants})
     return terms
@@ -117,14 +133,18 @@ def _count_terms(text: str, terms: list[dict[str, Any]]) -> MatchSummary:
     return MatchSummary(total=sum(counts.values()), unique=len(counts), counts=counts)
 
 
-def _load_user_terms(state_dir: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _load_user_terms(
+    state_dir: Path,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     path = state_dir / "dictionary.json"
     if not path.exists():
         return [], []
     raw = _load_json(path)
     if not isinstance(raw, dict):
         raise ScouterError(f"ユーザー辞書が不正です: {path}")
-    return _coerce_user_terms(raw.get("buzzwords", [])), _coerce_user_terms(raw.get("vague_phrases", []))
+    return _coerce_user_terms(raw.get("buzzwords", [])), _coerce_user_terms(
+        raw.get("vague_phrases", [])
+    )
 
 
 def _coerce_user_terms(items: Any) -> list[dict[str, Any]]:
@@ -137,7 +157,9 @@ def _coerce_user_terms(items: Any) -> list[dict[str, Any]]:
             result.append({"term": value, "variants": [value]})
         elif isinstance(item, dict) and isinstance(item.get("term"), str):
             variants = item.get("variants", [item["term"]])
-            if isinstance(variants, list) and all(isinstance(v, str) and v for v in variants):
+            if isinstance(variants, list) and all(
+                isinstance(v, str) and v for v in variants
+            ):
                 result.append({"term": item["term"], "variants": variants})
     return result
 
@@ -149,8 +171,14 @@ def _validate_analysis(raw: Any) -> dict[str, Any]:
     decisions = raw.get("decisions", [])
     actions = raw.get("actions", [])
     discovered = raw.get("discovered_phrases", [])
-    if not isinstance(decisions, list) or not isinstance(actions, list) or not isinstance(discovered, list):
-        raise ScouterError("decisions, actions, discovered_phrases は配列である必要があります")
+    if (
+        not isinstance(decisions, list)
+        or not isinstance(actions, list)
+        or not isinstance(discovered, list)
+    ):
+        raise ScouterError(
+            "decisions, actions, discovered_phrases は配列である必要があります"
+        )
 
     cleaned_discovered: list[dict[str, Any]] = []
     for item in discovered:
@@ -185,9 +213,18 @@ def _validate_analysis(raw: Any) -> dict[str, Any]:
         except (TypeError, ValueError):
             minutes = None
 
+    attendees = raw.get("attendee_count")
+    if attendees is not None:
+        try:
+            attendees = max(1, int(attendees))
+        except (TypeError, ValueError):
+            attendees = None
+
     return {
-        "source_label": str(raw.get("source_label", "貼り付けられた議事録")).strip() or "貼り付けられた議事録",
+        "source_label": str(raw.get("source_label", "貼り付けられた議事録")).strip()
+        or "貼り付けられた議事録",
         "meeting_minutes": minutes,
+        "attendee_count": attendees,
         "decisions": decisions,
         "actions": actions,
         "discovered_phrases": cleaned_discovered,
@@ -220,16 +257,39 @@ def _score(
     actions: int,
     missing_owner: int,
     missing_deadline: int,
+    meeting_minutes: int | None = None,
 ) -> ScoreBreakdown:
-    # Density prevents long transcripts from being punished simply for being long.
-    effective_chars = max(character_count, 500)
-    buzz_density = buzzword_count * 1000 / effective_chars
-    vague_density = (vague_count + responsibility_blur_count + decision_avoidance_count) * 1000 / effective_chars
+    raw_vague = vague_count + responsibility_blur_count + decision_avoidance_count
+    if meeting_minutes is not None:
+        # Time-based density: the same jargon count is denser in a short meeting.
+        # Calibration: 30 minutes of meeting ≈ 1,000 characters of condensed minutes,
+        # so the coefficients stay compatible with the character-based path.
+        # Very short meetings are clamped to avoid explosive rates.
+        effective_units = max(meeting_minutes, 15) / 30
+        buzz_density = buzzword_count / effective_units
+        vague_density = raw_vague / effective_units
+    else:
+        # Density prevents long transcripts from being punished simply for being long.
+        effective_chars = max(character_count, 500)
+        buzz_density = buzzword_count * 1000 / effective_chars
+        vague_density = raw_vague * 1000 / effective_chars
 
     jargon = round(min(25, buzz_density * 4.2))
     ambiguity = round(min(30, vague_density * 5.0))
 
-    if decisions == 0:
+    if meeting_minutes is not None and decisions > 0:
+        # Decision efficiency: decisions per hour, so a 3-hour meeting that settles
+        # one item is penalized harder than a 30-minute meeting that settles one.
+        decisions_per_hour = decisions * 60 / meeting_minutes
+        if decisions_per_hour >= 3:
+            decision_deficit = 0
+        elif decisions_per_hour >= 2:
+            decision_deficit = 6
+        elif decisions_per_hour >= 1:
+            decision_deficit = 12
+        else:
+            decision_deficit = 16
+    elif decisions == 0:
         decision_deficit = 20
     elif decisions == 1:
         decision_deficit = 12
@@ -270,11 +330,18 @@ def _rank(index: int) -> tuple[str, str]:
 def _default_roast(result_data: dict[str, int]) -> str:
     if result_data["decisions"] == 0 and result_data["actions"] == 0:
         return "全員で認識を合わせましたが、何を決めたのかは誰も覚えていません。"
-    if result_data["actions"] > 0 and result_data["missing_owner"] == result_data["actions"]:
+    if (
+        result_data["actions"] > 0
+        and result_data["missing_owner"] == result_data["actions"]
+    ):
         return "やることは決まりました。やる人だけが、まだこの世界に存在していません。"
     if result_data["missing_deadline"] > 0:
         return "前には進みましたが、いつ着くかは未定です。"
-    if result_data["decisions"] >= 3 and result_data["missing_owner"] == 0 and result_data["missing_deadline"] == 0:
+    if (
+        result_data["decisions"] >= 3
+        and result_data["missing_owner"] == 0
+        and result_data["missing_deadline"] == 0
+    ):
         return "異常に有意義な会議です。くだらなさが不足しています。"
     return "会議は終わりました。議題が終わったかどうかは別問題です。"
 
@@ -298,7 +365,11 @@ def _learn_candidates(
     source_label: str,
     enabled: bool,
 ) -> tuple[list[dict[str, Any]], str | None]:
-    eligible = [item for item in discovered if item["confidence"] >= CANDIDATE_CONFIDENCE_THRESHOLD]
+    eligible = [
+        item
+        for item in discovered
+        if item["confidence"] >= CANDIDATE_CONFIDENCE_THRESHOLD
+    ]
     if not enabled or not eligible:
         return [], None
 
@@ -310,8 +381,12 @@ def _learn_candidates(
 
     try:
         state_dir.mkdir(parents=True, exist_ok=True)
-        current = _load_json(path) if path.exists() else {"version": 1, "candidates": {}}
-        if not isinstance(current, dict) or not isinstance(current.get("candidates"), dict):
+        current = (
+            _load_json(path) if path.exists() else {"version": 1, "candidates": {}}
+        )
+        if not isinstance(current, dict) or not isinstance(
+            current.get("candidates"), dict
+        ):
             current = {"version": 1, "candidates": {}}
         candidates: dict[str, Any] = current["candidates"]
         new_items: list[dict[str, Any]] = []
@@ -341,21 +416,28 @@ def _learn_candidates(
                 documents.append(doc_id)
                 entry["document_count"] = int(entry.get("document_count", 0)) + 1
             entry["documents"] = documents[-20:]
-            entry["confidence_sum"] = float(entry.get("confidence_sum", 0.0)) + item["confidence"] * occurrences
+            entry["confidence_sum"] = (
+                float(entry.get("confidence_sum", 0.0))
+                + item["confidence"] * occurrences
+            )
             entry["last_seen"] = now
             examples = list(entry.get("examples", []))
             example = item.get("reason") or source_label
             if example and example not in examples:
                 examples.append(example)
             entry["examples"] = examples[-3:]
-            entry["average_confidence"] = round(entry["confidence_sum"] / max(1, entry["count"]), 3)
+            entry["average_confidence"] = round(
+                entry["confidence_sum"] / max(1, entry["count"]), 3
+            )
             entry["eligible_for_promotion"] = (
                 entry["count"] >= 3
                 and entry["document_count"] >= 2
                 and entry["average_confidence"] >= 0.85
             )
 
-        path.write_text(json.dumps(current, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps(current, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
         history_record = {
             "timestamp": now,
             "source_label": source_label,
@@ -370,7 +452,9 @@ def _learn_candidates(
         return [], warning
 
 
-def analyze(text: str, analysis_raw: Any, state_dir: Path, learn: bool) -> ScouterResult:
+def analyze(
+    text: str, analysis_raw: Any, state_dir: Path, learn: bool
+) -> ScouterResult:
     if not _normalize_text(text):
         raise ScouterError("議事録の本文が空です")
 
@@ -386,31 +470,49 @@ def analyze(text: str, analysis_raw: Any, state_dir: Path, learn: bool) -> Scout
         for variant in entry["variants"]
     }
     discovered = [
-        item for item in analysis["discovered_phrases"]
+        item
+        for item in analysis["discovered_phrases"]
         if _phrase_token(item["phrase"]) not in known_tokens
     ]
     discovered_counts = _discovered_counts(discovered)
 
     decisions = len(analysis["decisions"])
     actions = len(analysis["actions"])
-    missing_owner = sum(_action_missing(action, "owner") for action in analysis["actions"])
-    missing_deadline = sum(_action_missing(action, "deadline") for action in analysis["actions"])
+    missing_owner = sum(
+        _action_missing(action, "owner") for action in analysis["actions"]
+    )
+    missing_deadline = sum(
+        _action_missing(action, "deadline") for action in analysis["actions"]
+    )
     char_count = len(_normalize_text(text))
 
     score = _score(
         character_count=char_count,
         buzzword_count=fixed_buzzwords.total + discovered_counts["buzzword"],
-        vague_count=fixed_vague.total + discovered_counts["vague"] + discovered_counts["meeting_meta"],
+        vague_count=fixed_vague.total
+        + discovered_counts["vague"]
+        + discovered_counts["meeting_meta"],
         responsibility_blur_count=discovered_counts["responsibility_blur"],
         decision_avoidance_count=discovered_counts["decision_avoidance"],
         decisions=decisions,
         actions=actions,
         missing_owner=missing_owner,
         missing_deadline=missing_deadline,
+        meeting_minutes=analysis["meeting_minutes"],
     )
     index = score.total
     rank, rank_label = _rank(index)
     battle_power = 1_000 + index * 100
+    person_hours: float | None = None
+    wasted_person_hours: float | None = None
+    if (
+        analysis["meeting_minutes"] is not None
+        and analysis["attendee_count"] is not None
+    ):
+        person_hours = round(
+            analysis["meeting_minutes"] / 60 * analysis["attendee_count"], 1
+        )
+        wasted_person_hours = round(person_hours * index / 100, 1)
     new_candidates, warning = _learn_candidates(
         state_dir=state_dir,
         discovered=discovered,
@@ -431,6 +533,9 @@ def analyze(text: str, analysis_raw: Any, state_dir: Path, learn: bool) -> Scout
         source_label=analysis["source_label"],
         character_count=char_count,
         meeting_minutes=analysis["meeting_minutes"],
+        attendee_count=analysis["attendee_count"],
+        person_hours=person_hours,
+        wasted_person_hours=wasted_person_hours,
         fixed_buzzwords=fixed_buzzwords,
         fixed_vague_phrases=fixed_vague,
         discovered_counts=discovered_counts,
@@ -457,7 +562,9 @@ def _bar(value: int, width: int = 24) -> str:
 
 def _display_width(text: str) -> int:
     # Treat only East Asian wide/full-width characters as two columns.
-    return sum(2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1 for char in text)
+    return sum(
+        2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1 for char in text
+    )
 
 
 def _pad(text: str, width: int) -> str:
@@ -481,15 +588,32 @@ def render_tui(result: ScouterResult) -> str:
     lines.append(f"  解析対象    {result.source_label}")
     lines.append(f"  文字数      {result.character_count:,}文字")
     if result.meeting_minutes is not None:
-        lines.append(f"  会議時間    {result.meeting_minutes}分")
+        if result.attendee_count is not None and result.person_hours is not None:
+            lines.append(
+                f"  会議時間    {result.meeting_minutes}分 × {result.attendee_count}名"
+                f" = {result.person_hours:.1f}人時"
+            )
+        else:
+            lines.append(f"  会議時間    {result.meeting_minutes}分")
     lines.append("")
     lines.append(f"  空中戦指数  {result.index:>3}/100  {_bar(result.index)}")
     lines.append(f"  ランク      {result.rank}  — {result.rank_label}")
     lines.append(f"  会議戦闘力  {result.battle_power:,}")
-    lines.append(f"  当スカウター基準: 一般的な定例会議の約{result.baseline_multiple:.1f}倍")
+    if result.wasted_person_hours is not None:
+        lines.append(
+            f"  推定被害    {result.wasted_person_hours:.1f}人時が空中に消えました"
+        )
+    if result.meeting_minutes is not None:
+        decisions_per_hour = result.decisions * 60 / result.meeting_minutes
+        lines.append(f"  決定効率    {decisions_per_hour:.1f}件/時")
+    lines.append(
+        f"  当スカウター基準: 一般的な定例会議の約{result.baseline_multiple:.1f}倍"
+    )
     lines.append("")
     lines.append("  ── 内訳 ─────────────────────────────────────")
-    lines.append(f"  横文字              {result.fixed_buzzwords.total + result.discovered_counts['buzzword']:>3}回")
+    lines.append(
+        f"  横文字              {result.fixed_buzzwords.total + result.discovered_counts['buzzword']:>3}回"
+    )
     vague_total = (
         result.fixed_vague_phrases.total
         + result.discovered_counts["vague"]
@@ -509,8 +633,12 @@ def render_tui(result: ScouterResult) -> str:
     )
 
     if result.fixed_buzzwords.counts:
-        top = sorted(result.fixed_buzzwords.counts.items(), key=lambda item: (-item[1], item[0]))[:3]
-        lines.append("  頻出語      " + "、".join(f"{term}×{count}" for term, count in top))
+        top = sorted(
+            result.fixed_buzzwords.counts.items(), key=lambda item: (-item[1], item[0])
+        )[:3]
+        lines.append(
+            "  頻出語      " + "、".join(f"{term}×{count}" for term, count in top)
+        )
 
     if result.new_candidates:
         lines.append("")
@@ -552,7 +680,9 @@ def _read_text(args: argparse.Namespace) -> str:
         except FileNotFoundError as exc:
             raise ScouterError(f"本文ファイルが見つかりません: {path}") from exc
         except UnicodeDecodeError as exc:
-            raise ScouterError(f"本文ファイルはUTF-8テキストに変換してください: {path}") from exc
+            raise ScouterError(
+                f"本文ファイルはUTF-8テキストに変換してください: {path}"
+            ) from exc
     if not sys.stdin.isatty():
         return sys.stdin.read()
     raise ScouterError("--text-file を指定するか、標準入力から本文を渡してください")
@@ -568,8 +698,12 @@ def _list_candidates(state_dir: Path, as_json: bool) -> str:
     if not path.exists():
         return "[]" if as_json else "候補辞書はまだ空です。"
     raw = _load_json(path)
-    candidates = list(raw.get("candidates", {}).values()) if isinstance(raw, dict) else []
-    candidates.sort(key=lambda item: (-int(item.get("count", 0)), str(item.get("phrase", ""))))
+    candidates = (
+        list(raw.get("candidates", {}).values()) if isinstance(raw, dict) else []
+    )
+    candidates.sort(
+        key=lambda item: (-int(item.get("count", 0)), str(item.get("phrase", "")))
+    )
     if as_json:
         return json.dumps(candidates, ensure_ascii=False, indent=2)
     if not candidates:
@@ -585,17 +719,31 @@ def _list_candidates(state_dir: Path, as_json: bool) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="会議スカウターの決定論的スコアリングエンジン")
+    parser = argparse.ArgumentParser(
+        description="会議スカウターの決定論的スコアリングエンジン"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    analyze_parser = subparsers.add_parser("analyze", help="議事録とAI分析JSONから結果を生成")
-    analyze_parser.add_argument("--text-file", help="UTF-8の議事録本文ファイル。省略時は標準入力")
-    analyze_parser.add_argument("--analysis-file", required=True, help="analysis contract準拠のJSON")
-    analyze_parser.add_argument("--state-dir", default=str(DEFAULT_STATE_DIR), help="候補辞書の保存先")
+    analyze_parser = subparsers.add_parser(
+        "analyze", help="議事録とAI分析JSONから結果を生成"
+    )
+    analyze_parser.add_argument(
+        "--text-file", help="UTF-8の議事録本文ファイル。省略時は標準入力"
+    )
+    analyze_parser.add_argument(
+        "--analysis-file", required=True, help="analysis contract準拠のJSON"
+    )
+    analyze_parser.add_argument(
+        "--state-dir", default=str(DEFAULT_STATE_DIR), help="候補辞書の保存先"
+    )
     analyze_parser.add_argument("--format", choices=("tui", "json"), default="tui")
-    analyze_parser.add_argument("--no-learn", action="store_true", help="候補辞書を更新しない")
+    analyze_parser.add_argument(
+        "--no-learn", action="store_true", help="候補辞書を更新しない"
+    )
 
-    candidates_parser = subparsers.add_parser("candidates", help="蓄積された新語候補を表示")
+    candidates_parser = subparsers.add_parser(
+        "candidates", help="蓄積された新語候補を表示"
+    )
     candidates_parser.add_argument("--state-dir", default=str(DEFAULT_STATE_DIR))
     candidates_parser.add_argument("--json", action="store_true")
     return parser
@@ -608,7 +756,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "analyze":
             text = _read_text(args)
             analysis_raw = _read_analysis(args.analysis_file)
-            result = analyze(text, analysis_raw, Path(args.state_dir).expanduser(), learn=not args.no_learn)
+            result = analyze(
+                text,
+                analysis_raw,
+                Path(args.state_dir).expanduser(),
+                learn=not args.no_learn,
+            )
             if args.format == "json":
                 print(json.dumps(result_to_json(result), ensure_ascii=False, indent=2))
             else:
